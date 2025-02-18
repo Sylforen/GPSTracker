@@ -1,12 +1,10 @@
 package com.example.gpstracker
 
-//noinspection UsingMaterialAndMaterial3Libraries
-//import androidx.compose.material.Text
-
-//noinspection UsingMaterialAndMaterial3Libraries
-//noinspection UsingMaterialAndMaterial3Libraries
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
 import android.os.Bundle
 import android.widget.Switch
 import android.widget.TextView
@@ -23,18 +21,29 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import org.xmlpull.v1.XmlPullParser
 
 class MainActivity : ComponentActivity() {
 
-
     final val DEFAULT_UPDATE_INTERVAL = 30
     final val FAST_UPDATE_INTERVAL = 5
+    val PERMISSION_FINE_LOCATION: Int = 13
 
+    lateinit var fusedLocationProviderClient: FusedLocationProviderClient
 
+    lateinit var tv_lat: TextView
+    lateinit var tv_lon: TextView
+    lateinit var tv_altitutde: TextView
+    lateinit var tv_accuracy: TextView
+    lateinit var tv_speed: TextView
+    lateinit var tv_sensor: TextView
+    lateinit var tv_updates: TextView
+    lateinit var tv_address: TextView
 
     @SuppressLint("WrongViewCast", "UseSwitchCompatOrMaterialCode")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,33 +54,95 @@ class MainActivity : ComponentActivity() {
                     DisplayXmlContent(xmlResId = R.layout.activity_main)
                 }
             }
-
-
         }
-        val updateOn = false
-
-        // google's api for location services
-        val fusedLocationProviderClient : FusedLocationProviderClient
 
         setContentView(R.layout.activity_main)
-        val tv_lat: TextView = findViewById(R.id.tv_lat)
-        val tv_lon: TextView = findViewById(R.id.tv_lon)
-        val tv_altitutde: TextView = findViewById(R.id.tv_altitude)
-        val tv_accuracy: TextView = findViewById(R.id.tv_accuracy)
-        val tv_speed: TextView = findViewById(R.id.tv_speed)
-        val tv_sensor: TextView = findViewById(R.id.tv_sensor)
-        val tv_updates: TextView = findViewById(R.id.tv_updates)
-        val tv_address: TextView = findViewById(R.id.tv_address)
 
-        val sw_locationupdates : Switch = findViewById(R.id.sw_locationsupdates)
-        val sw_gps : Switch = findViewById(R.id.sw_gps)
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
+
+        tv_lat = findViewById(R.id.tv_lat)
+        tv_lon = findViewById(R.id.tv_lon)
+        tv_altitutde = findViewById(R.id.tv_altitude)
+        tv_accuracy = findViewById(R.id.tv_accuracy)
+        tv_speed = findViewById(R.id.tv_speed)
+        tv_sensor = findViewById(R.id.tv_sensor)
+        tv_updates = findViewById(R.id.tv_updates)
+        tv_address = findViewById(R.id.tv_address)
+
+        val sw_locationupdates: Switch = findViewById(R.id.sw_locationsupdates)
+        val sw_gps: Switch = findViewById(R.id.sw_gps)
 
         // TODO: ADD DYNAMIC TOGGLE FOR DEFAULT INTERVAL + FAST INTERVAL
         var speed = DEFAULT_UPDATE_INTERVAL
-        var locationRequest : LocationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY,30000).build()
+        var locationRequest: LocationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 30000).build()
+
+        sw_gps.setOnClickListener {
+            if (sw_gps.isChecked) {
+                // most accurate - use GPS
+                locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000).build()
+                tv_sensor.text = "Using GPS sensor"
+            } else {
+                locationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 5000).build()
+                tv_sensor.text = "Using Towers + WiFi"
+            }
+        }
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_FINE_LOCATION)
+        } else {
+            updateGPS()
+        }
+    } // end of onCreate()
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        when (requestCode) {
+            PERMISSION_FINE_LOCATION -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    updateGPS()
+                } else {
+                    //Toast.makeText(this, "This app requires permission to be granted in order to work properly", Toast.LENGTH_SHORT).show()
+                    ///finish()
+                    updateGPS()
+                }
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun updateGPS() {
+        fusedLocationProviderClient.lastLocation.addOnSuccessListener { location ->
+            // handle location object
+            if (location != null) {
+                // Update UI with location data
+                updateUIValues(location)
+            }
+        }
+    }
+
+    private fun updateUIValues(location: Location) {
+        // update all of the text view objects with a new location
+        tv_lat.text = location.latitude.toString()
+        tv_lon.text = location.longitude.toString()
+
+        if (location.hasAltitude()) {
+            tv_altitutde.text = location.altitude.toString()
+        } else {
+            tv_altitutde.text = "Not available on this device."
+        }
+
+        if (location.hasSpeed()) {
+            tv_speed.text = location.speed.toString()
+        } else {
+            tv_speed.text = "Not available on this device."
+        }
     }
 }
-
 
 @Composable
 fun DisplayXmlContent(xmlResId: Int) {
