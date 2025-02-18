@@ -63,4 +63,6 @@ dependencies {
     implementation ("androidx.compose.material:material:1.0.5")
     implementation ("androidx.compose.ui:ui-tooling-preview:1.0.5")
     implementation ("androidx.activity:activity-compose:1.3.1")
+    implementation ("com.google.android.gms:play-services-location:21.3.0")
+
 }
