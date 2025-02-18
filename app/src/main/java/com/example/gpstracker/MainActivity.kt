@@ -23,7 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import org.xmlpull.v1.XmlPullParser
@@ -44,6 +46,8 @@ class MainActivity : ComponentActivity() {
     lateinit var tv_sensor: TextView
     lateinit var tv_updates: TextView
     lateinit var tv_address: TextView
+
+    lateinit var locationCallback: LocationCallback
 
     @SuppressLint("WrongViewCast", "UseSwitchCompatOrMaterialCode")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,6 +80,8 @@ class MainActivity : ComponentActivity() {
         var speed = DEFAULT_UPDATE_INTERVAL
         var locationRequest: LocationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 30000).build()
 
+
+
         sw_gps.setOnClickListener {
             if (sw_gps.isChecked) {
                 // most accurate - use GPS
@@ -86,6 +92,70 @@ class MainActivity : ComponentActivity() {
                 tv_sensor.text = "Using Towers + WiFi"
             }
         }
+
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(p0: LocationResult) {
+                super.onLocationResult(p0)
+
+                val location: Location? = p0.lastLocation
+                if (location != null) {
+                    updateUIValues(location)
+                }
+            }
+        }
+
+        fun startLocationUpdates() {
+            tv_updates.text = "Location is being tracked"
+
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return
+            }
+            fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, null)
+            updateGPS()
+
+        }
+
+
+        fun stopLocationUpdates() {
+            tv_updates.text = "Location is NOT being tracked"
+
+            tv_lat.text = "Not tracking latitude"
+            tv_lon.text = "Not tracking longitude"
+            tv_speed.text = "Not tracking speed"
+            tv_address.text = "Not tracking address"
+            tv_altitutde.text = "Not tracking altitude"
+            tv_sensor.text = "Not tracking sensor data"
+            tv_accuracy.text = "Not tracking accuracy"
+
+            fusedLocationProviderClient.removeLocationUpdates(locationCallback)
+        }
+
+
+        sw_locationupdates.setOnClickListener  {
+
+                if (sw_locationupdates.isChecked){
+                    // turn on location tracking
+                    startLocationUpdates()
+                } else {
+                    // turn off location tracking
+                    stopLocationUpdates()
+                }
+        }
+
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_FINE_LOCATION)
@@ -140,6 +210,12 @@ class MainActivity : ComponentActivity() {
             tv_speed.text = location.speed.toString()
         } else {
             tv_speed.text = "Not available on this device."
+        }
+
+        if (location.hasAccuracy()){
+            tv_accuracy.text = location.accuracy.toString()
+        }else{
+            tv_accuracy.text = "Not available on this device"
         }
     }
 }
