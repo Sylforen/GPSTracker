@@ -4,12 +4,16 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import android.location.Address
+import android.location.Geocoder
 import android.location.Location
+import android.os.Build
 import android.os.Bundle
 import android.widget.Switch
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.MaterialTheme
@@ -49,7 +53,13 @@ class MainActivity : ComponentActivity() {
 
     lateinit var locationCallback: LocationCallback
 
-    @SuppressLint("WrongViewCast", "UseSwitchCompatOrMaterialCode")
+    lateinit var geocoder : Geocoder
+
+    //lateinit var
+
+
+    //@SuppressLint("WrongViewCast", "UseSwitchCompatOrMaterialCode")
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -76,24 +86,29 @@ class MainActivity : ComponentActivity() {
         val sw_locationupdates: Switch = findViewById(R.id.sw_locationsupdates)
         val sw_gps: Switch = findViewById(R.id.sw_gps)
 
+
         // TODO: ADD DYNAMIC TOGGLE FOR DEFAULT INTERVAL + FAST INTERVAL
         var speed = DEFAULT_UPDATE_INTERVAL
-        var locationRequest: LocationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 30000).build()
+        var locationRequest: LocationRequest =
+            LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 30000).build()
 
 
 
         sw_gps.setOnClickListener {
             if (sw_gps.isChecked) {
                 // most accurate - use GPS
-                locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000).build()
+                locationRequest =
+                    LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000).build()
                 tv_sensor.text = "Using GPS sensor"
             } else {
-                locationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 5000).build()
+                locationRequest =
+                    LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 5000).build()
                 tv_sensor.text = "Using Towers + WiFi"
             }
         }
 
         locationCallback = object : LocationCallback() {
+            @RequiresApi(Build.VERSION_CODES.TIRAMISU)
             override fun onLocationResult(p0: LocationResult) {
                 super.onLocationResult(p0)
 
@@ -104,6 +119,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
         fun startLocationUpdates() {
             tv_updates.text = "Location is being tracked"
 
@@ -124,7 +140,11 @@ class MainActivity : ComponentActivity() {
                 // for ActivityCompat#requestPermissions for more details.
                 return
             }
-            fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, null)
+            fusedLocationProviderClient.requestLocationUpdates(
+                locationRequest,
+                locationCallback,
+                null
+            )
             updateGPS()
 
         }
@@ -132,7 +152,6 @@ class MainActivity : ComponentActivity() {
 
         fun stopLocationUpdates() {
             tv_updates.text = "Location is NOT being tracked"
-
             tv_lat.text = "Not tracking latitude"
             tv_lon.text = "Not tracking longitude"
             tv_speed.text = "Not tracking speed"
@@ -145,30 +164,41 @@ class MainActivity : ComponentActivity() {
         }
 
 
-        sw_locationupdates.setOnClickListener  {
+        sw_locationupdates.setOnClickListener {
 
-                if (sw_locationupdates.isChecked){
-                    // turn on location tracking
-                    startLocationUpdates()
-                } else {
-                    // turn off location tracking
-                    stopLocationUpdates()
-                }
+            if (sw_locationupdates.isChecked) {
+                // turn on location tracking
+                startLocationUpdates()
+
+            } else {
+                // turn off location tracking
+                stopLocationUpdates()
+
+            }
         }
 
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_FINE_LOCATION)
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                PERMISSION_FINE_LOCATION
+            )
         } else {
             updateGPS()
         }
     } // end of onCreate()
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
+
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
         when (requestCode) {
@@ -177,13 +207,17 @@ class MainActivity : ComponentActivity() {
                     updateGPS()
                 } else {
                     //Toast.makeText(this, "This app requires permission to be granted in order to work properly", Toast.LENGTH_SHORT).show()
-                    ///finish()
+                    //finish()
                     updateGPS()
                 }
+
             }
+
         }
+
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     @SuppressLint("MissingPermission")
     fun updateGPS() {
         fusedLocationProviderClient.lastLocation.addOnSuccessListener { location ->
@@ -195,10 +229,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun updateUIValues(location: Location) {
         // update all of the text view objects with a new location
+
         tv_lat.text = location.latitude.toString()
         tv_lon.text = location.longitude.toString()
+
 
         if (location.hasAltitude()) {
             tv_altitutde.text = location.altitude.toString()
@@ -212,11 +249,35 @@ class MainActivity : ComponentActivity() {
             tv_speed.text = "Not available on this device."
         }
 
-        if (location.hasAccuracy()){
+        if (location.hasAccuracy()) {
             tv_accuracy.text = location.accuracy.toString()
-        }else{
+        } else {
             tv_accuracy.text = "Not available on this device"
         }
+
+
+        val geocoder = Geocoder(this)
+        geocoder.getFromLocation(location.latitude, location.longitude, 1, object : Geocoder.GeocodeListener {
+            override fun onGeocode(addresses: List<Address>) {
+                if (addresses.isNotEmpty()) {
+                    val address: Address = addresses[0]
+                    runOnUiThread {
+                        tv_address.text = address.getAddressLine(0)
+                    }
+                } else {
+                    runOnUiThread {
+                        tv_address.text = "Address not found"
+                    }
+                }
+            }
+
+            override fun onError(errorMessage: String?) {
+                runOnUiThread {
+                    tv_address.text = "Unable to get address"
+                }
+            }
+        })
+
     }
 }
 
@@ -231,6 +292,8 @@ fun DisplayXmlContent(xmlResId: Int) {
         }
     }
 }
+
+
 
 fun parseXml(context: Context, xmlResId: Int): List<Pair<String, String>> {
     val xmlResourceParser = context.resources.getXml(xmlResId)
@@ -250,6 +313,8 @@ fun parseXml(context: Context, xmlResId: Int): List<Pair<String, String>> {
 
     return result
 }
+
+
 
 @Preview(showBackground = true)
 @Composable
