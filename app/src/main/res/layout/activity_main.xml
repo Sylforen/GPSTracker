@@ -188,14 +188,50 @@
         tools:ignore="MissingConstraints"
         tools:layout_editor_absoluteX="1dp" />
 
-    <Button
-        android:id="@+id/btn_showMap"
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:text="TextView"
+        tools:layout_editor_absoluteX="73dp"
+        tools:layout_editor_absoluteY="453dp" />
+
+    <TextView
+        android:id="@+id/tv_labelCrumbs"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="View Map"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:text="Waypoints: "
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_sensor" />
+        app:layout_constraintTop_toBottomOf="@+id/tv_labelsensor" />
+
+    <TextView
+        android:id="@+id/tv_countOfCrumbs"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="8dp"
+        android:text="0"
+        app:layout_constraintStart_toEndOf="@+id/tv_labelCrumbs"
+        app:layout_constraintTop_toBottomOf="@+id/tv_labelsensor" />
+
+    <Button
+        android:id="@+id/btn_newWaypoint"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="New Waypoint"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tv_labelCrumbs" />
+
+    <Button
+        android:id="@+id/btn_showWaypointList"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Show List"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/btn_newWaypoint" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

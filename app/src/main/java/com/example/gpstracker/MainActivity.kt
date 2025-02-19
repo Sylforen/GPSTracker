@@ -9,6 +9,9 @@ import android.location.Geocoder
 import android.location.Location
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.widget.Button
 import android.widget.Switch
 import android.widget.TextView
 import androidx.activity.ComponentActivity
@@ -50,15 +53,31 @@ class MainActivity : ComponentActivity() {
     lateinit var tv_sensor: TextView
     lateinit var tv_updates: TextView
     lateinit var tv_address: TextView
+    lateinit var tv_waypointCounts: TextView
+
+    lateinit var btn_newWaypoint: Button
+    lateinit var btn_showWaypointList: Button
 
     lateinit var locationCallback: LocationCallback
 
-    lateinit var geocoder : Geocoder
+    lateinit var geocoder: Geocoder
 
-    //lateinit var
+    lateinit var current_location: Location
 
+    lateinit var savedLocation: MutableList<Location>
 
-    //@SuppressLint("WrongViewCast", "UseSwitchCompatOrMaterialCode")
+    private val handler = Handler(Looper.getMainLooper())
+    private lateinit var locationRequest: LocationRequest
+
+    private val updateLocationRunnable = object : Runnable {
+        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+        override fun run() {
+            updateGPS()
+            handler.postDelayed(this, 10000) // 10 seconds interval
+        }
+    }
+
+    @SuppressLint("WrongViewCast", "UseSwitchCompatOrMaterialCode")
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,27 +101,39 @@ class MainActivity : ComponentActivity() {
         tv_sensor = findViewById(R.id.tv_sensor)
         tv_updates = findViewById(R.id.tv_updates)
         tv_address = findViewById(R.id.tv_address)
+        tv_waypointCounts = findViewById(R.id.tv_countOfCrumbs)
+
+        btn_newWaypoint = findViewById(R.id.btn_newWaypoint)
+        btn_showWaypointList = findViewById(R.id.btn_showWaypointList)
 
         val sw_locationupdates: Switch = findViewById(R.id.sw_locationsupdates)
         val sw_gps: Switch = findViewById(R.id.sw_gps)
 
-
         // TODO: ADD DYNAMIC TOGGLE FOR DEFAULT INTERVAL + FAST INTERVAL
         var speed = DEFAULT_UPDATE_INTERVAL
-        var locationRequest: LocationRequest =
-            LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 30000).build()
+        locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 100).build()
 
+        btn_newWaypoint.setOnClickListener {
+            // get gps location
+            updateGPS()
 
+            // add to list
+            val myApplication = applicationContext as MyApplication
+            savedLocation = myApplication.getMyLocations().toMutableList()
+            savedLocation.add(current_location)
+            myApplication.setMyLocations(savedLocation)
+
+            // Update waypoint count
+            tv_waypointCounts.text = savedLocation.size.toString()
+        }
 
         sw_gps.setOnClickListener {
             if (sw_gps.isChecked) {
                 // most accurate - use GPS
-                locationRequest =
-                    LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000).build()
+                locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 100).build()
                 tv_sensor.text = "Using GPS sensor"
             } else {
-                locationRequest =
-                    LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 5000).build()
+                locationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 100).build()
                 tv_sensor.text = "Using Towers + WiFi"
             }
         }
@@ -119,74 +150,18 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-        fun startLocationUpdates() {
-            tv_updates.text = "Location is being tracked"
-
-            if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
-                return
-            }
-            fusedLocationProviderClient.requestLocationUpdates(
-                locationRequest,
-                locationCallback,
-                null
-            )
-            updateGPS()
-
-        }
-
-
-        fun stopLocationUpdates() {
-            tv_updates.text = "Location is NOT being tracked"
-            tv_lat.text = "Not tracking latitude"
-            tv_lon.text = "Not tracking longitude"
-            tv_speed.text = "Not tracking speed"
-            tv_address.text = "Not tracking address"
-            tv_altitutde.text = "Not tracking altitude"
-            tv_sensor.text = "Not tracking sensor data"
-            tv_accuracy.text = "Not tracking accuracy"
-
-            fusedLocationProviderClient.removeLocationUpdates(locationCallback)
-        }
-
-
         sw_locationupdates.setOnClickListener {
-
             if (sw_locationupdates.isChecked) {
                 // turn on location tracking
                 startLocationUpdates()
-
             } else {
                 // turn off location tracking
                 stopLocationUpdates()
-
             }
         }
 
-
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissions(
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                PERMISSION_FINE_LOCATION
-            )
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_FINE_LOCATION)
         } else {
             updateGPS()
         }
@@ -198,7 +173,6 @@ class MainActivity : ComponentActivity() {
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
-
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
         when (requestCode) {
@@ -210,11 +184,8 @@ class MainActivity : ComponentActivity() {
                     //finish()
                     updateGPS()
                 }
-
             }
-
         }
-
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -225,17 +196,17 @@ class MainActivity : ComponentActivity() {
             if (location != null) {
                 // Update UI with location data
                 updateUIValues(location)
+                current_location = location
             }
         }
     }
 
+    @SuppressLint("SetTextI18n")
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun updateUIValues(location: Location) {
         // update all of the text view objects with a new location
-
         tv_lat.text = location.latitude.toString()
         tv_lon.text = location.longitude.toString()
-
 
         if (location.hasAltitude()) {
             tv_altitutde.text = location.altitude.toString()
@@ -254,7 +225,6 @@ class MainActivity : ComponentActivity() {
         } else {
             tv_accuracy.text = "Not available on this device"
         }
-
 
         val geocoder = Geocoder(this)
         geocoder.getFromLocation(location.latitude, location.longitude, 1, object : Geocoder.GeocodeListener {
@@ -278,6 +248,87 @@ class MainActivity : ComponentActivity() {
             }
         })
 
+        // Define the center and radius of the geo-fence
+        val geofenceCenter = Location("").apply {
+            latitude = -32.9277 // TODO REPLACE WITH HARD CODED LAT
+            longitude = 151.7722 // TODO REPLACE WITH HARD CODED LON
+        }
+
+        // Newcastle Town Hall coords
+        // -32.9277° S, 151.7722° E
+
+        // Default coords
+        // 37.7749, -122.4149
+
+        val geofenceRadius = 40f
+
+        val isWithinGeofence = isWithinGeofence(location, geofenceCenter, geofenceRadius)
+        print(isWithinGeofence)
+        if (isWithinGeofence) {
+            // User is within the geo-fence
+            runOnUiThread {
+                tv_updates.text = "User is within the geo-fence"
+            }
+        } else {
+            // User is outside the geo-fence
+            runOnUiThread {
+                tv_updates.text = "User is outside the geo-fence"
+            }
+        }
+
+        val myApplication = applicationContext as MyApplication
+        savedLocation = myApplication.getMyLocations().toMutableList()
+        val list_size = savedLocation.size
+        tv_waypointCounts.text = list_size.toString()
+    }
+
+    private fun isWithinGeofence(userLocation: Location, geofenceCenter: Location, geofenceRadius: Float): Boolean {
+        val distance = userLocation.distanceTo(geofenceCenter)
+        return distance <= geofenceRadius
+    }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    fun startLocationUpdates() {
+        tv_updates.text = "Location is being tracked"
+
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return
+        }
+        fusedLocationProviderClient.requestLocationUpdates(
+            locationRequest,
+            locationCallback,
+            null
+        )
+        updateGPS()
+        handler.post(updateLocationRunnable)
+    }
+
+    fun stopLocationUpdates() {
+        tv_updates.text = "Location is NOT being tracked"
+        tv_lat.text = "Not tracking latitude"
+        tv_lon.text = "Not tracking longitude"
+        tv_speed.text = "Not tracking speed"
+        tv_address.text = "Not tracking address"
+        tv_altitutde.text = "Not tracking altitude"
+        tv_sensor.text = "Not tracking sensor data"
+        tv_accuracy.text = "Not tracking accuracy"
+
+        fusedLocationProviderClient.removeLocationUpdates(locationCallback)
+        handler.removeCallbacks(updateLocationRunnable)
     }
 }
 
@@ -292,8 +343,6 @@ fun DisplayXmlContent(xmlResId: Int) {
         }
     }
 }
-
-
 
 fun parseXml(context: Context, xmlResId: Int): List<Pair<String, String>> {
     val xmlResourceParser = context.resources.getXml(xmlResId)
@@ -313,8 +362,6 @@ fun parseXml(context: Context, xmlResId: Int): List<Pair<String, String>> {
 
     return result
 }
-
-
 
 @Preview(showBackground = true)
 @Composable
