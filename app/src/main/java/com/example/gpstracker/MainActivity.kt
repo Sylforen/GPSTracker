@@ -57,6 +57,7 @@ class MainActivity : ComponentActivity() {
 
     lateinit var btn_newWaypoint: Button
     lateinit var btn_showWaypointList: Button
+    //lateinit var btn_showMap: Button
 
     lateinit var locationCallback: LocationCallback
 
@@ -73,11 +74,11 @@ class MainActivity : ComponentActivity() {
         @RequiresApi(Build.VERSION_CODES.TIRAMISU)
         override fun run() {
             updateGPS()
-            handler.postDelayed(this, 10000) // 10 seconds interval
+            handler.postDelayed(this, 1000) // 1 second interval
         }
     }
 
-    @SuppressLint("WrongViewCast", "UseSwitchCompatOrMaterialCode")
+    @SuppressLint("WrongViewCast", "UseSwitchCompatOrMaterialCode", "UnsafeIntentLaunch")
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -105,6 +106,7 @@ class MainActivity : ComponentActivity() {
 
         btn_newWaypoint = findViewById(R.id.btn_newWaypoint)
         btn_showWaypointList = findViewById(R.id.btn_showWaypointList)
+        //btn_showMap = findViewById(R.id.btn_showMap)
 
         val sw_locationupdates: Switch = findViewById(R.id.sw_locationsupdates)
         val sw_gps: Switch = findViewById(R.id.sw_gps)
@@ -112,6 +114,20 @@ class MainActivity : ComponentActivity() {
         // TODO: ADD DYNAMIC TOGGLE FOR DEFAULT INTERVAL + FAST INTERVAL
         var speed = DEFAULT_UPDATE_INTERVAL
         locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 100).build()
+
+
+
+
+
+
+
+
+        //btn_showWaypointList.setOnClickListener { // CURRENTLY BROKEN, DO NOT CLICK SHOW LIST BUTTON
+            //val intent : Intent = Intent(applicationContext, ShowSavedLocations::class.java)
+            //startActivity(intent)
+        //}
+
+
 
         btn_newWaypoint.setOnClickListener {
             // get gps location
@@ -171,9 +187,10 @@ class MainActivity : ComponentActivity() {
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
-        grantResults: IntArray
+        grantResults: IntArray,
+        deviceId: Int
     ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        super.onRequestPermissionsResult(requestCode, permissions as Array<String>, grantResults)
 
         when (requestCode) {
             PERMISSION_FINE_LOCATION -> {
@@ -250,8 +267,13 @@ class MainActivity : ComponentActivity() {
 
         // Define the center and radius of the geo-fence
         val geofenceCenter = Location("").apply {
-            latitude = -32.9277 // TODO REPLACE WITH HARD CODED LAT
-            longitude = 151.7722 // TODO REPLACE WITH HARD CODED LON
+            latitude = 37.7749 // TODO REPLACE WITH HARD CODED LAT
+            longitude = -122.4149 // TODO REPLACE WITH HARD CODED LON
+        }
+
+        val user_test_location = Location("").apply {
+            latitude = 37.7749
+            longitude = -122.4149
         }
 
         // Newcastle Town Hall coords
@@ -260,9 +282,8 @@ class MainActivity : ComponentActivity() {
         // Default coords
         // 37.7749, -122.4149
 
-        val geofenceRadius = 40f
-
-        val isWithinGeofence = isWithinGeofence(location, geofenceCenter, geofenceRadius)
+        val geofenceRadius = 35f
+        val isWithinGeofence = isWithinGeofence(user_test_location, geofenceCenter, geofenceRadius)
         print(isWithinGeofence)
         if (isWithinGeofence) {
             // User is within the geo-fence
@@ -284,7 +305,10 @@ class MainActivity : ComponentActivity() {
 
     private fun isWithinGeofence(userLocation: Location, geofenceCenter: Location, geofenceRadius: Float): Boolean {
         val distance = userLocation.distanceTo(geofenceCenter)
-        return distance <= geofenceRadius
+        if (distance <= geofenceRadius) {
+            return true
+        }
+        return false
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)

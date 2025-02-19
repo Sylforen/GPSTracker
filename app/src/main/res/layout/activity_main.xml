@@ -202,7 +202,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginTop="8dp"
-        android:text="Waypoints: "
+        android:text="Geofences: "
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tv_labelsensor" />
 
@@ -220,7 +220,7 @@
         android:id="@+id/btn_newWaypoint"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="New Waypoint"
+        android:text="New Geofence"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tv_labelCrumbs" />
@@ -233,5 +233,14 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/btn_newWaypoint" />
+
+    <Button
+        android:id="@+id/tv_showMap"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Show Map"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/btn_showWaypointList" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
