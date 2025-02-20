@@ -2,6 +2,8 @@ package com.example.gpstracker
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Address
@@ -29,6 +31,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -41,7 +45,10 @@ class MainActivity : ComponentActivity() {
 
     final val DEFAULT_UPDATE_INTERVAL = 30
     final val FAST_UPDATE_INTERVAL = 5
+
     val PERMISSION_FINE_LOCATION: Int = 13
+    val CHANNEL_ID = "geofence_channel"
+    val NOTIFICATION_ID = 1
 
     lateinit var fusedLocationProviderClient: FusedLocationProviderClient
 
@@ -115,19 +122,13 @@ class MainActivity : ComponentActivity() {
         var speed = DEFAULT_UPDATE_INTERVAL
         locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 100).build()
 
+        createNotificationChannel()
 
-
-
-
-
-
-
-        //btn_showWaypointList.setOnClickListener { // CURRENTLY BROKEN, DO NOT CLICK SHOW LIST BUTTON
-            //val intent : Intent = Intent(applicationContext, ShowSavedLocations::class.java)
+        btn_showWaypointList.setOnClickListener {
+            //val intent = Intent(this, ShowSavedLocations::class.java)
             //startActivity(intent)
-        //}
-
-
+            showNotification("Simple Notification", "This is a simple notification text.")
+        }
 
         btn_newWaypoint.setOnClickListener {
             // get gps location
@@ -181,7 +182,52 @@ class MainActivity : ComponentActivity() {
         } else {
             updateGPS()
         }
+
+        createNotificationChannel()
+        //showNotification("Simple Notification", "This is a simple notification text.")
+
     } // end of onCreate()
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun createNotificationChannel() {
+        //if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Geofence Channel"
+            val descriptionText = "Channel for geofence alerts"
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+            }
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        //}
+    }
+
+    private fun showNotification(title: String, message: String) {
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.notification_icon)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+
+        with(NotificationManagerCompat.from(this)) {
+            if (ActivityCompat.checkSelfPermission(
+                    this@MainActivity,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return
+            }
+            notify(NOTIFICATION_ID, builder.build())
+        }
+    }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onRequestPermissionsResult(
@@ -201,8 +247,11 @@ class MainActivity : ComponentActivity() {
                     //finish()
                     updateGPS()
                 }
+
             }
+
         }
+
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -214,13 +263,27 @@ class MainActivity : ComponentActivity() {
                 // Update UI with location data
                 updateUIValues(location)
                 current_location = location
+
             }
         }
     }
 
-    @SuppressLint("SetTextI18n")
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+//    private fun running(url: String = "http://127.0.0.1:5000/api/data") {
+//        print("Please")
+//        val client = OkHttpClient()
+//        val request = Request.Builder().url(url).build()
+//
+//        client.newCall(request).enqueue(object : Callback {
+//            override fun onFailure(call: Call, e: IOException) {}
+//            override fun onResponse(call: Call, response: Response) = println(response.body()?.string())
+//        })
+//    }
+
+
+    @SuppressLint("SetTextI18n")
     private fun updateUIValues(location: Location) {
+        //running("http://127.0.0.1:5000/api/data")
         // update all of the text view objects with a new location
         tv_lat.text = location.latitude.toString()
         tv_lon.text = location.longitude.toString()
@@ -267,13 +330,8 @@ class MainActivity : ComponentActivity() {
 
         // Define the center and radius of the geo-fence
         val geofenceCenter = Location("").apply {
-            latitude = 37.7749 // TODO REPLACE WITH HARD CODED LAT
-            longitude = -122.4149 // TODO REPLACE WITH HARD CODED LON
-        }
-
-        val user_test_location = Location("").apply {
-            latitude = 37.7749
-            longitude = -122.4149
+            latitude = -32.9277 // TODO REPLACE WITH HARD CODED LAT
+            longitude = 151.7722 // TODO REPLACE WITH HARD CODED LON
         }
 
         // Newcastle Town Hall coords
@@ -283,17 +341,19 @@ class MainActivity : ComponentActivity() {
         // 37.7749, -122.4149
 
         val geofenceRadius = 35f
-        val isWithinGeofence = isWithinGeofence(user_test_location, geofenceCenter, geofenceRadius)
+        val isWithinGeofence = isWithinGeofence(location, geofenceCenter, geofenceRadius)
         print(isWithinGeofence)
         if (isWithinGeofence) {
             // User is within the geo-fence
             runOnUiThread {
                 tv_updates.text = "User is within the geo-fence"
+                //showNotification("Geofence Alert", "You are within the geofence.")
             }
         } else {
             // User is outside the geo-fence
             runOnUiThread {
                 tv_updates.text = "User is outside the geo-fence"
+                //showNotification("Geofence Alert", "You are outside the geofence.")
             }
         }
 
@@ -305,10 +365,7 @@ class MainActivity : ComponentActivity() {
 
     private fun isWithinGeofence(userLocation: Location, geofenceCenter: Location, geofenceRadius: Float): Boolean {
         val distance = userLocation.distanceTo(geofenceCenter)
-        if (distance <= geofenceRadius) {
-            return true
-        }
-        return false
+        return distance <= geofenceRadius
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
